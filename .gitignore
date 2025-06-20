@@ -1,7 +1,7 @@
-# Compiled class files
+# Compiled class file
 *.class
 
-# Log files
+# Log file
 *.log
 
 # BlueJ files
@@ -10,7 +10,7 @@
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
-# Package Files
+# Package Files #
 *.jar
 *.war
 *.nar
@@ -19,25 +19,9 @@
 *.tar.gz
 *.rar
 
-# Virtual machine crash logs
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
-
-# IDE files
-.vscode/
-.idea/
-*.iml
-*.ipr
-*.iws
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
 # Maven
 target/
@@ -51,8 +35,22 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
-# Cursor AI files
-.cursor/
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Temporary files
 *.tmp
@@ -61,17 +59,25 @@ buildNumber.properties
 *.swo
 *~
 
-# User data (optional - remove if you want to include user data)
+# Build directories
+bin/
+build/
+out/
+
+# Data files (optional - remove if you want to include user data)
 data/users.dat
 data/schedules.dat
 data/settings.properties
 
-# Data files (if you want to exclude them)
+# User-specific data
 data/
 *.dat
 *.db
 
-# Build directories
-bin/
-build/
-out/ 
+# Backup files
+*.bak
+*.backup
+
+# System files
+Thumbs.db
+.DS_Store 
