@@ -108,29 +108,49 @@ public class ScheduleRecurrenceDialog extends JDialog {
     }
     
     private void loadScheduleData() {
+        if (schedule == null) {
+            System.err.println("일정이 null입니다.");
+            return;
+        }
+        
         if (schedule.isRecurring()) {
             Schedule.RecurrenceType type = schedule.getRecurrenceType();
-            switch (type) {
-                case DAILY: recurrenceTypeCombo.setSelectedIndex(0); break;
-                case WEEKLY: recurrenceTypeCombo.setSelectedIndex(1); break;
-                case MONTHLY: recurrenceTypeCombo.setSelectedIndex(2); break;
-                case YEARLY: recurrenceTypeCombo.setSelectedIndex(3); break;
-                default: break;
+            if (type != null) {
+                switch (type) {
+                    case DAILY: recurrenceTypeCombo.setSelectedIndex(0); break;
+                    case WEEKLY: recurrenceTypeCombo.setSelectedIndex(1); break;
+                    case MONTHLY: recurrenceTypeCombo.setSelectedIndex(2); break;
+                    case YEARLY: recurrenceTypeCombo.setSelectedIndex(3); break;
+                    default: break;
+                }
             }
             
             intervalSpinner.setValue(schedule.getRecurrenceInterval());
             
             if (schedule.getRecurrenceEndDate() != null) {
-                endDateSpinner.setValue(java.sql.Timestamp.valueOf(schedule.getRecurrenceEndDate()));
+                try {
+                    endDateSpinner.setValue(java.sql.Timestamp.valueOf(schedule.getRecurrenceEndDate()));
+                } catch (Exception e) {
+                    System.err.println("반복 종료일 설정 중 오류: " + e.getMessage());
+                }
             }
             
-            for (LocalDateTime date : schedule.getExceptionDates()) {
-                exceptionDatesModel.addElement(date);
+            if (schedule.getExceptionDates() != null) {
+                for (LocalDateTime date : schedule.getExceptionDates()) {
+                    if (date != null) {
+                        exceptionDatesModel.addElement(date);
+                    }
+                }
             }
         }
     }
     
     private void saveScheduleData() {
+        if (schedule == null) {
+            System.err.println("일정이 null입니다.");
+            return;
+        }
+        
         schedule.setRecurring(true);
         
         Schedule.RecurrenceType type = Schedule.RecurrenceType.NONE;
@@ -145,11 +165,18 @@ public class ScheduleRecurrenceDialog extends JDialog {
         schedule.setRecurrenceInterval((Integer) intervalSpinner.getValue());
         
         java.util.Date endDate = (java.util.Date) endDateSpinner.getValue();
-        schedule.setRecurrenceEndDate(endDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
+        if (endDate != null) {
+            schedule.setRecurrenceEndDate(endDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
+        }
         
-        schedule.getExceptionDates().clear();
-        for (int i = 0; i < exceptionDatesModel.getSize(); i++) {
-            schedule.addExceptionDate(exceptionDatesModel.getElementAt(i));
+        if (schedule.getExceptionDates() != null) {
+            schedule.getExceptionDates().clear();
+            for (int i = 0; i < exceptionDatesModel.getSize(); i++) {
+                LocalDateTime date = exceptionDatesModel.getElementAt(i);
+                if (date != null) {
+                    schedule.addExceptionDate(date);
+                }
+            }
         }
     }
     
@@ -163,15 +190,24 @@ public class ScheduleRecurrenceDialog extends JDialog {
                 
         if (result == JOptionPane.OK_OPTION) {
             java.util.Date date = (java.util.Date) dateSpinner.getValue();
-            LocalDateTime dateTime = date.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
-            exceptionDatesModel.addElement(dateTime);
+            if (date != null) {
+                try {
+                    LocalDateTime dateTime = date.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+                    exceptionDatesModel.addElement(dateTime);
+                } catch (Exception e) {
+                    System.err.println("예외 날짜 추가 중 오류: " + e.getMessage());
+                    JOptionPane.showMessageDialog(this, "예외 날짜 추가 중 오류가 발생했습니다.", "오류", JOptionPane.ERROR_MESSAGE);
+                }
+            }
         }
     }
     
     private void removeExceptionDate() {
         int selectedIndex = exceptionDatesList.getSelectedIndex();
-        if (selectedIndex != -1) {
+        if (selectedIndex != -1 && selectedIndex < exceptionDatesModel.getSize()) {
             exceptionDatesModel.remove(selectedIndex);
+        } else {
+            JOptionPane.showMessageDialog(this, "삭제할 예외 날짜를 선택해주세요.", "알림", JOptionPane.INFORMATION_MESSAGE);
         }
     }
     

@@ -53,6 +53,7 @@ public class ScheduleManager {
         schedules.put(schedule.getScheduleId(), schedule);
         schedule.scheduleReminder();
         saveSchedules();
+        notifyScheduleChanged();
     }
 
     public void updateSchedule(String scheduleId, Schedule updatedSchedule) {
@@ -80,6 +81,7 @@ public class ScheduleManager {
         schedules.put(scheduleId, updatedSchedule);
         updatedSchedule.scheduleReminder();
         saveSchedules();
+        notifyScheduleChanged();
     }
 
     public void deleteSchedule(String scheduleId) {
@@ -98,6 +100,7 @@ public class ScheduleManager {
         schedule.cancelReminder();
         schedules.remove(scheduleId);
         saveSchedules();
+        notifyScheduleChanged();
     }
 
     public List<Schedule> getUserSchedules() {
@@ -189,6 +192,7 @@ public class ScheduleManager {
 
         schedule.shareWithUser(targetUserId, permission);
         saveSchedules();
+        notifyScheduleChanged();
     }
 
     public void removeSharedUser(String scheduleId, String targetUserId) {
@@ -206,6 +210,7 @@ public class ScheduleManager {
 
         schedule.removeSharedUser(targetUserId);
         saveSchedules();
+        notifyScheduleChanged();
     }
 
     public List<Schedule> getSharedSchedules() {
@@ -235,6 +240,7 @@ public class ScheduleManager {
                 location, category, isImportant, currentUserId);
         schedules.put(scheduleId, schedule);
         saveSchedules();
+        notifyScheduleChanged();
         return scheduleId;
     }
 
@@ -251,6 +257,7 @@ public class ScheduleManager {
     public void createSchedule(Schedule schedule) {
         schedules.put(schedule.getScheduleId(), schedule);
         saveSchedules();
+        notifyScheduleChanged();
     }
 
     public List<Schedule> getSchedules() {
@@ -267,6 +274,7 @@ public class ScheduleManager {
     public void updateSchedule(Schedule schedule) {
         schedules.put(schedule.getScheduleId(), schedule);
         saveSchedules();
+        notifyScheduleChanged();
     }
 
     public Map<String, Object> getScheduleStatistics() {
@@ -385,6 +393,7 @@ public class ScheduleManager {
         if (schedule != null) {
             schedule.addSharedUser(targetUserId);
             DataStorage.saveSchedules(schedules);
+            notifyScheduleChanged();
         }
     }
 
@@ -393,6 +402,7 @@ public class ScheduleManager {
         if (schedule != null) {
             schedule.removeSharedUser(targetUserId);
             DataStorage.saveSchedules(schedules);
+            notifyScheduleChanged();
         }
     }
 
@@ -408,6 +418,7 @@ public class ScheduleManager {
             schedule.setStatus("COMPLETED");
             schedule.setCompleted(true);
             saveSchedules();
+            notifyScheduleChanged();
         }
     }
 
@@ -419,5 +430,25 @@ public class ScheduleManager {
         return getUserSchedules().stream()
                 .filter(schedule -> schedule.getStartTime().toLocalDate().equals(today))
             .collect(Collectors.toList());
+    }
+
+    public interface ScheduleChangeListener {
+        void onScheduleChanged();
+    }
+
+    private final List<ScheduleChangeListener> listeners = new ArrayList<>();
+
+    public void addScheduleChangeListener(ScheduleChangeListener listener) {
+        listeners.add(listener);
+    }
+
+    public void removeScheduleChangeListener(ScheduleChangeListener listener) {
+        listeners.remove(listener);
+    }
+
+    private void notifyScheduleChanged() {
+        for (ScheduleChangeListener listener : listeners) {
+            listener.onScheduleChanged();
+        }
     }
 } 

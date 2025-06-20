@@ -31,6 +31,7 @@ public class StatisticsPanel extends JPanel {
         setLayout(new BorderLayout());
         initializeComponents();
         updateStatistics();
+        scheduleManager.addScheduleChangeListener(this::updateStatistics);
     }
 
     private void initializeComponents() {
@@ -138,15 +139,9 @@ public class StatisticsPanel extends JPanel {
             if (allSchedules == null) {
                 return new ArrayList<>();
             }
-            
             return allSchedules.stream()
-                .filter(schedule -> {
-                    if (schedule == null || schedule.getStartTime() == null) {
-                        return false;
-                    }
-                    return !schedule.getStartTime().isAfter(end) && 
-                           !schedule.getStartTime().isBefore(start);
-                })
+                .filter(s -> s != null && s.getStartTime() != null && s.getEndTime() != null)
+                .filter(s -> !s.getStartTime().isAfter(end) && !s.getEndTime().isBefore(start))
                 .collect(Collectors.toList());
         } catch (Exception e) {
             System.err.println("일정 필터링 중 오류: " + e.getMessage());
