@@ -364,6 +364,14 @@ public class ScheduleDialog extends JDialog {
     }
 
     private void saveSchedule() {
+        System.out.println("saveSchedule() 호출됨");
+        
+        if (userManager.getCurrentUser() == null) {
+            System.err.println("사용자가 로그인되지 않음");
+            JOptionPane.showMessageDialog(this, "일정을 저장하려면 로그인이 필요합니다.", "오류", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         try {
             String title = titleField.getText().trim();
             String description = descriptionArea.getText();
@@ -376,6 +384,7 @@ public class ScheduleDialog extends JDialog {
             // Tags, Recurrence, etc. would be retrieved here
 
             if (schedule == null) { // 새 일정 추가
+                System.out.println("새 일정 추가 시도");
                 String userId = userManager.getCurrentUser().getUserId();
                 Schedule newSchedule = new Schedule(
                     UUID.randomUUID().toString(), title, description, startTime, endTime,
@@ -384,8 +393,10 @@ public class ScheduleDialog extends JDialog {
                 newSchedule.setColor(color);
                 // set other properties like tags, recurrence...
                 scheduleManager.addSchedule(newSchedule);
+                System.out.println("새 일정 추가 성공");
                 JOptionPane.showMessageDialog(this, "일정이 성공적으로 추가되었습니다.");
             } else { // 기존 일정 수정
+                System.out.println("기존 일정 수정 시도: " + schedule.getScheduleId());
                 schedule.setTitle(title);
                 schedule.setDescription(description);
                 schedule.setStartTime(startTime);
@@ -396,15 +407,19 @@ public class ScheduleDialog extends JDialog {
                 schedule.setColor(color);
                 // set other properties...
                 scheduleManager.updateSchedule(schedule.getScheduleId(), schedule);
+                System.out.println("기존 일정 수정 성공");
                 JOptionPane.showMessageDialog(this, "일정이 성공적으로 수정되었습니다.");
             }
 
             if (onSave != null) {
+                System.out.println("onSave 콜백 실행");
                 onSave.run();
             }
             dispose();
 
         } catch (Exception e) {
+            System.err.println("일정 저장 중 오류: " + e.getMessage());
+            e.printStackTrace(); // Log the full error for debugging
             JOptionPane.showMessageDialog(this, "일정 저장 중 오류 발생: " + e.getMessage(), "오류", JOptionPane.ERROR_MESSAGE);
         }
     }

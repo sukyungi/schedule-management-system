@@ -183,8 +183,13 @@ public class NotificationManager {
 
     public void checkNotifications(ScheduleManager scheduleManager) {
         if (scheduleManager == null) return;
-
-        String userId = UserManager.getInstance().getCurrentUser().getUserId();
+        
+        User currentUser = UserManager.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            return; // 사용자가 로그인하지 않았으면 알림을 체크하지 않음
+        }
+        
+        String userId = currentUser.getUserId();
         if (userId == null) return;
 
         LocalDateTime now = LocalDateTime.now();

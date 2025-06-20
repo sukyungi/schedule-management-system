@@ -30,11 +30,11 @@ public class ScheduleStatistics {
         stats.put("completionRate", completionRate);
         
         // 카테고리별 통계
-        Map<String, Integer> categoryStats = scheduleManager.getCategoryStatistics(userId);
+        Map<String, Integer> categoryStats = scheduleManager.getCategoryStatistics(userSchedules);
         stats.put("categoryStatistics", categoryStats);
         
         // 우선순위별 통계
-        Map<Integer, Integer> priorityStats = scheduleManager.getPriorityStatistics(userId);
+        Map<Integer, Integer> priorityStats = scheduleManager.getPriorityStatistics(userSchedules);
         stats.put("priorityStatistics", priorityStats);
         
         // 오늘의 일정 수
@@ -131,7 +131,8 @@ public class ScheduleStatistics {
 
     // 카테고리별 통계
     public Map<String, Integer> getCategoryStatistics() {
-        return scheduleManager.getCategoryStatistics(userManager.getCurrentUser().getUserId());
+        List<Schedule> userSchedules = scheduleManager.getSchedulesByUserId(userManager.getCurrentUser().getUserId());
+        return scheduleManager.getCategoryStatistics(userSchedules);
     }
 
     // 중요 일정 통계

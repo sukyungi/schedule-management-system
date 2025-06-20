@@ -60,7 +60,7 @@ public class DashboardPanel extends JPanel {
         add(centerPanel, BorderLayout.CENTER);
 
         // 날짜/시간 실시간 업데이트 (1초마다)
-        new Timer(1000, e -> updateDateTime()).start();
+        new Timer(1000, _ -> updateDateTime()).start();
 
         // 데이터 로드
         updateDashboard();
@@ -101,9 +101,9 @@ public class DashboardPanel extends JPanel {
     }
 
     private void updateTaskStatus() {
-        List<Task> allTasks = scheduleManager.getAllTasks();
-        long completedTasks = allTasks.stream().filter(Task::isCompleted).count();
-        long totalTasks = allTasks.size();
-        taskStatusLabel.setText(String.format("총 %d개의 할 일 중 %d개 완료", totalTasks, completedTasks));
+        List<Schedule> allSchedules = scheduleManager.getUserSchedules();
+        long completedSchedules = allSchedules.stream().filter(Schedule::isCompleted).count();
+        long totalSchedules = allSchedules.size();
+        taskStatusLabel.setText(String.format("총 %d개의 할 일 중 %d개 완료", totalSchedules, completedSchedules));
     }
 } 

@@ -131,6 +131,7 @@ public class UserManager {
         if (isValid) {
             user.setLoggedIn(true);
             currentUser = user;
+            ScheduleManager.getInstance().setCurrentUser(trimmedUserId);
             System.out.println("로그인 성공: " + trimmedUserId);
             return true;
         } else {
@@ -143,6 +144,7 @@ public class UserManager {
         if (currentUser != null) {
             currentUser.setLoggedIn(false);
             currentUser = null;
+            ScheduleManager.getInstance().setCurrentUser(null);
         }
     }
 

@@ -112,53 +112,6 @@ public class DataStorage {
         return new HashMap<>();
     }
 
-    // 할 일 데이터 저장
-    public static void saveTasks(Map<String, Task> tasks) {
-        if (tasks == null) {
-            System.err.println("저장할 할 일 데이터가 null입니다.");
-            return;
-        }
-        
-        File file = new File(DATA_DIR + File.separator + TASKS_FILE);
-        try (ObjectOutputStream oos = new ObjectOutputStream(
-                new BufferedOutputStream(
-                    new FileOutputStream(file)))) {
-            oos.writeObject(new HashMap<>(tasks));
-            oos.flush();
-            System.out.println("할 일 데이터 저장 완료: " + tasks.size() + "개");
-        } catch (IOException e) {
-            System.err.println("할 일 데이터 저장 중 오류 발생: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // 할 일 데이터 불러오기
-    @SuppressWarnings("unchecked")
-    public static Map<String, Task> loadTasks() {
-        File file = new File(DATA_DIR + File.separator + TASKS_FILE);
-        if (!file.exists()) {
-            System.out.println("할 일 데이터 파일이 없습니다. 새로 생성합니다.");
-            return new HashMap<>();
-        }
-
-        try (ObjectInputStream ois = new ObjectInputStream(
-                new BufferedInputStream(
-                    new FileInputStream(file)))) {
-            Object obj = ois.readObject();
-            if (obj instanceof Map) {
-                Map<String, Task> loadedTasks = (Map<String, Task>) obj;
-                System.out.println("할 일 데이터 로드 완료: " + loadedTasks.size() + "개");
-                return new HashMap<>(loadedTasks);
-            } else {
-                System.err.println("잘못된 데이터 형식입니다.");
-            }
-        } catch (IOException | ClassNotFoundException e) {
-            System.err.println("할 일 데이터 로드 중 오류 발생: " + e.getMessage());
-            e.printStackTrace();
-        }
-        return new HashMap<>();
-    }
-
     // 데이터 백업
     public static void backupData() {
         String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -182,13 +135,9 @@ public class DataStorage {
                     StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // 할 일 데이터 백업
-            File tasksFile = new File(DATA_DIR + File.separator + TASKS_FILE);
-            if (tasksFile.exists()) {
-                Files.copy(tasksFile.toPath(), 
-                    new File(backupDir + File.separator + TASKS_FILE).toPath(),
-                    StandardCopyOption.REPLACE_EXISTING);
-            }
+            // 할 일 데이터 백업 로직 제거
+            // File tasksFile = new File(DATA_DIR + File.separator + TASKS_FILE);
+            // if (tasksFile.exists()) { ... }
         } catch (IOException e) {
             System.err.println("데이터 백업 중 오류 발생: " + e.getMessage());
             e.printStackTrace();
@@ -216,13 +165,9 @@ public class DataStorage {
                     StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // 할 일 데이터 복원
-            File tasksBackup = new File(backupDir + File.separator + TASKS_FILE);
-            if (tasksBackup.exists()) {
-                Files.copy(tasksBackup.toPath(), 
-                    new File(DATA_DIR + File.separator + TASKS_FILE).toPath(),
-                    StandardCopyOption.REPLACE_EXISTING);
-            }
+            // 할 일 데이터 복원 로직 제거
+            // File tasksBackup = new File(backupDir + File.separator + TASKS_FILE);
+            // if (tasksBackup.exists()) { ... }
         } catch (IOException e) {
             System.err.println("데이터 복원 중 오류 발생: " + e.getMessage());
             e.printStackTrace();

@@ -5,6 +5,7 @@ import java.awt.event.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.ArrayList;
 
 public class TaskListPanel extends JPanel {
     private final ScheduleGUI parent;
@@ -16,71 +17,62 @@ public class TaskListPanel extends JPanel {
     private JComboBox<String> tagFilterCombo;
     private JCheckBox importantFilterCheckBox;
     private Font koreanFont;
+    private List<Schedule> displayedSchedules;
 
     public TaskListPanel(ScheduleGUI parent, ScheduleManager scheduleManager) {
         this.parent = parent;
         this.scheduleManager = scheduleManager;
-        this.koreanFont = new Font("Malgun Gothic", Font.PLAIN, 14);
+        this.displayedSchedules = new ArrayList<>();
         
-        setLayout(new BorderLayout());
+        // 한글 폰트 설정
+        koreanFont = new Font("Malgun Gothic", Font.PLAIN, 12);
         
-        // 필터 패널
-        JPanel filterPanel = createFilterPanel();
-        add(filterPanel, BorderLayout.NORTH);
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
-        // 테이블 패널
-        JPanel tablePanel = createTablePanel();
-        add(tablePanel, BorderLayout.CENTER);
+        add(createFilterPanel(), BorderLayout.NORTH);
+        add(createTablePanel(), BorderLayout.CENTER);
+        add(createButtonPanel(), BorderLayout.SOUTH);
         
-        // 버튼 패널
-        JPanel buttonPanel = createButtonPanel();
-        add(buttonPanel, BorderLayout.SOUTH);
-        
-        // 초기 데이터 로드
-        loadTasks();
+        loadSchedules();
     }
 
     private JPanel createFilterPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-
+        panel.setBorder(BorderFactory.createTitledBorder("필터 및 검색"));
+        
         // 검색 필드
-        searchField = new JTextField(15);
+        searchField = new JTextField(20);
         searchField.setFont(koreanFont);
-        panel.add(new JLabel("검색:"));
-        panel.add(searchField);
-
-        // 필터 콤보박스
-        filterCombo = new JComboBox<>(new String[]{
-            "전체", "대기중", "진행중", "완료", "중요", "지연"
-        });
+        searchField.addActionListener(e -> applyFilters());
+        
+        // 상태 필터
+        filterCombo = new JComboBox<>(new String[]{"전체", "대기중", "진행중", "완료", "중요", "지연"});
         filterCombo.setFont(koreanFont);
-        panel.add(new JLabel("필터:"));
-        panel.add(filterCombo);
-
+        filterCombo.addActionListener(e -> applyFilters());
+        
         // 태그 필터
         tagFilterCombo = new JComboBox<>();
         tagFilterCombo.setFont(koreanFont);
+        tagFilterCombo.addActionListener(e -> applyFilters());
+        
+        // 중요 필터
+        importantFilterCheckBox = new JCheckBox("중요 일정만");
+        importantFilterCheckBox.setFont(koreanFont);
+        importantFilterCheckBox.addActionListener(e -> applyFilters());
+        
+        panel.add(new JLabel("검색:"));
+        panel.add(searchField);
+        panel.add(new JLabel("상태:"));
+        panel.add(filterCombo);
         panel.add(new JLabel("태그:"));
         panel.add(tagFilterCombo);
-
-        // 중요 태스크 필터
-        importantFilterCheckBox = new JCheckBox("중요 태스크만");
-        importantFilterCheckBox.setFont(koreanFont);
         panel.add(importantFilterCheckBox);
-
-        // 필터 적용 버튼
-        JButton applyFilterButton = new JButton("필터 적용");
-        applyFilterButton.setFont(koreanFont);
-        applyFilterButton.addActionListener(_ -> applyFilters());
-        panel.add(applyFilterButton);
-
+        
         return panel;
     }
 
     private JPanel createTablePanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-
-        // 테이블 모델 설정 - 진행률 컬럼 추가
         String[] columnNames = {"제목", "마감일", "상태", "우선순위", "진행률", "체크리스트"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
@@ -88,202 +80,161 @@ public class TaskListPanel extends JPanel {
                 return false;
             }
         };
-
+        
         taskTable = new JTable(tableModel);
         taskTable.setFont(koreanFont);
-        taskTable.getTableHeader().setFont(new Font("Malgun Gothic", Font.BOLD, 14));
-        taskTable.setRowHeight(30); // 높이 증가
+        taskTable.getTableHeader().setFont(koreanFont);
+        taskTable.setRowHeight(25);
         taskTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        // 컬럼 너비 설정
-        taskTable.getColumnModel().getColumn(0).setPreferredWidth(200); // 제목
-        taskTable.getColumnModel().getColumn(1).setPreferredWidth(120); // 마감일
-        taskTable.getColumnModel().getColumn(2).setPreferredWidth(80);  // 상태
-        taskTable.getColumnModel().getColumn(3).setPreferredWidth(80);  // 우선순위
-        taskTable.getColumnModel().getColumn(4).setPreferredWidth(100); // 진행률
-        taskTable.getColumnModel().getColumn(5).setPreferredWidth(120); // 체크리스트
-
-        // 더블클릭 이벤트 처리
+        
+        // 더블클릭으로 일정 상세보기
         taskTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
-                    int row = taskTable.getSelectedRow();
-                    if (row != -1) {
-                        String taskId = (String) taskTable.getValueAt(row, 0);
-                        Schedule task = scheduleManager.getSchedule(taskId);
-                        if (task != null) {
-                            showTaskDetail(task);
-                        }
+                    int selectedRow = taskTable.getSelectedRow();
+                    if (selectedRow != -1) {
+                        showScheduleDetail(displayedSchedules.get(selectedRow));
                     }
                 }
             }
         });
-
-        // 스크롤 패널에 테이블 추가
+        
         JScrollPane scrollPane = new JScrollPane(taskTable);
+        scrollPane.setPreferredSize(new Dimension(800, 400));
+        
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("일정 목록"));
         panel.add(scrollPane, BorderLayout.CENTER);
-
+        
         return panel;
     }
 
     private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-
-        JButton addButton = new JButton("할 일 추가");
-        JButton editButton = new JButton("수정");
-        JButton deleteButton = new JButton("삭제");
-        JButton completeButton = new JButton("완료");
-        JButton checklistButton = new JButton("체크리스트"); // 체크리스트 버튼 추가
-
-        addButton.setFont(koreanFont);
-        editButton.setFont(koreanFont);
-        deleteButton.setFont(koreanFont);
-        completeButton.setFont(koreanFont);
-        checklistButton.setFont(koreanFont);
-
-        addButton.addActionListener(_ -> addTask());
-        editButton.addActionListener(_ -> {
-            int selectedRow = taskTable.getSelectedRow();
-            if (selectedRow == -1) {
-                JOptionPane.showMessageDialog(this,
-                    "수정할 태스크를 선택해주세요.",
-                    "알림",
-                    JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            String taskId = (String) taskTable.getValueAt(selectedRow, 0);
-            Schedule task = scheduleManager.getSchedule(taskId);
-            if (task != null) {
-                editTask(task);
-            }
-        });
-        deleteButton.addActionListener(_ -> deleteTask());
-        completeButton.addActionListener(_ -> completeTask());
-        checklistButton.addActionListener(_ -> showChecklistDialog()); // 체크리스트 다이얼로그
-
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        
+        JButton addButton = new JButton("일정 추가");
+        JButton editButton = new JButton("일정 수정");
+        JButton deleteButton = new JButton("일정 삭제");
+        JButton completeButton = new JButton("완료 처리");
+        JButton checklistButton = new JButton("체크리스트");
+        
+        // 버튼 폰트 설정
+        Font buttonFont = new Font("Malgun Gothic", Font.BOLD, 12);
+        addButton.setFont(buttonFont);
+        editButton.setFont(buttonFont);
+        deleteButton.setFont(buttonFont);
+        completeButton.setFont(buttonFont);
+        checklistButton.setFont(buttonFont);
+        
+        addButton.addActionListener(e -> addSchedule());
+        editButton.addActionListener(e -> editSchedule());
+        deleteButton.addActionListener(e -> deleteSchedule());
+        completeButton.addActionListener(e -> completeSchedule());
+        checklistButton.addActionListener(e -> showChecklistDialog());
+        
         panel.add(addButton);
         panel.add(editButton);
         panel.add(deleteButton);
         panel.add(completeButton);
         panel.add(checklistButton);
-
+        
         return panel;
     }
 
-    private void showTaskDetail(Schedule task) {
-        TaskDialog dialog = new TaskDialog(
-            (Frame) SwingUtilities.getWindowAncestor(this),
-            "태스크 상세",
-            task);
+    private void showScheduleDetail(Schedule schedule) {
+        ScheduleDetailDialog dialog = new ScheduleDetailDialog(parent, schedule);
         dialog.setVisible(true);
+        loadSchedules();
+    }
+
+    private void addSchedule() {
+        ScheduleDialog dialog = new ScheduleDialog(
+            (Frame) SwingUtilities.getWindowAncestor(this), 
+            scheduleManager, 
+            UserManager.getInstance(), 
+            null, 
+            this::loadSchedules
+        );
+        dialog.setVisible(true);
+    }
+
+    private void editSchedule() {
+        int selectedRow = taskTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this,
+                "수정할 일정을 선택해주세요.",
+                "알림",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
         
-        Schedule updatedTask = dialog.getTask();
-        if (updatedTask != null) {
-            try {
-                scheduleManager.updateSchedule(task.getScheduleId(), updatedTask);
-                loadTasks();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this,
-                    ex.getMessage(), "오류",
-                    JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    private void addTask() {
-        TaskDialog dialog = new TaskDialog(
-            (Frame) SwingUtilities.getWindowAncestor(this),
-            "새 태스크 추가",
-            null);
+        Schedule scheduleToEdit = displayedSchedules.get(selectedRow);
+        System.out.println("수정할 일정: " + scheduleToEdit.getTitle() + " (ID: " + scheduleToEdit.getScheduleId() + ")");
+        
+        ScheduleDialog dialog = new ScheduleDialog(
+            (Frame) SwingUtilities.getWindowAncestor(this), 
+            scheduleManager, 
+            UserManager.getInstance(), 
+            scheduleToEdit, 
+            this::loadSchedules
+        );
         dialog.setVisible(true);
-
-        Schedule task = dialog.getTask();
-        if (task != null) {
-            try {
-                scheduleManager.addSchedule(task);
-                loadTasks();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this,
-                    ex.getMessage(), "오류",
-                    JOptionPane.ERROR_MESSAGE);
-            }
-        }
+        System.out.println("수정 다이얼로그가 닫힘");
     }
 
-    private void editTask(Schedule task) {
-        TaskDialog dialog = new TaskDialog(
-            (Frame) SwingUtilities.getWindowAncestor(this),
-            "태스크 수정",
-            task);
-        dialog.setVisible(true);
-
-        Schedule updatedTask = dialog.getTask();
-        if (updatedTask != null) {
-            try {
-                scheduleManager.updateSchedule(task.getScheduleId(), updatedTask);
-                loadTasks();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this,
-                    ex.getMessage(), "오류",
-                    JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    private void deleteTask() {
+    private void deleteSchedule() {
         int selectedRow = taskTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this,
-                "삭제할 태스크를 선택해주세요.",
+                "삭제할 일정을 선택해주세요.",
                 "알림",
                 JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        String taskId = (String) taskTable.getValueAt(selectedRow, 0);
+        Schedule scheduleToDelete = displayedSchedules.get(selectedRow);
+        System.out.println("삭제할 일정: " + scheduleToDelete.getTitle() + " (ID: " + scheduleToDelete.getScheduleId() + ")");
+        
         int confirm = JOptionPane.showConfirmDialog(this,
-            "선택한 태스크를 삭제하시겠습니까?",
+            "선택한 일정 '"+ scheduleToDelete.getTitle() +"'를 삭제하시겠습니까?",
             "확인",
             JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                scheduleManager.deleteSchedule(taskId);
-                loadTasks();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this,
-                    ex.getMessage(), "오류",
-                    JOptionPane.ERROR_MESSAGE);
+                System.out.println("일정 삭제 시도: " + scheduleToDelete.getScheduleId());
+                scheduleManager.deleteSchedule(scheduleToDelete.getScheduleId());
+                System.out.println("일정 삭제 성공");
+                loadSchedules();
+                JOptionPane.showMessageDialog(this, "일정이 삭제되었습니다.", "성공", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception e) {
+                System.err.println("삭제 오류: " + e.getMessage());
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "삭제 중 오류 발생: " + e.getMessage(), "오류", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
-    private void completeTask() {
+    private void completeSchedule() {
         int selectedRow = taskTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this,
-                "완료할 태스크를 선택해주세요.",
+                "완료할 일정을 선택해주세요.",
                 "알림",
                 JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        String taskId = (String) taskTable.getValueAt(selectedRow, 0);
-        int confirm = JOptionPane.showConfirmDialog(this,
-            "선택한 태스크를 완료하시겠습니까?",
-            "확인",
-            JOptionPane.YES_NO_OPTION);
-
-        if (confirm == JOptionPane.YES_OPTION) {
-            try {
-                scheduleManager.completeSchedule(taskId);
-                loadTasks();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this,
-                    ex.getMessage(), "오류",
-                    JOptionPane.ERROR_MESSAGE);
-            }
+        Schedule scheduleToComplete = displayedSchedules.get(selectedRow);
+        try {
+            scheduleToComplete.setStatus("COMPLETED");
+            scheduleToComplete.setCompleted(true);
+            scheduleManager.updateSchedule(scheduleToComplete.getScheduleId(), scheduleToComplete);
+            loadSchedules();
+            JOptionPane.showMessageDialog(this, "일정이 완료 처리되었습니다.", "성공", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "완료 처리 중 오류 발생: " + ex.getMessage(), "오류", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -291,44 +242,35 @@ public class TaskListPanel extends JPanel {
         int selectedRow = taskTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this,
-                "체크리스트를 관리할 태스크를 선택해주세요.",
+                "체크리스트를 관리할 일정을 선택해주세요.",
                 "알림",
                 JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         
-        String taskId = (String) taskTable.getValueAt(selectedRow, 0);
-        Schedule task = scheduleManager.getSchedule(taskId);
-        if (task != null) {
-            ChecklistDialog dialog = new ChecklistDialog(
-                (Frame) SwingUtilities.getWindowAncestor(this),
-                task);
-            dialog.setVisible(true);
-            loadTasks(); // 테이블 새로고침
-        }
+        Schedule schedule = displayedSchedules.get(selectedRow);
+        ChecklistDialog dialog = new ChecklistDialog(parent, schedule);
+        dialog.setVisible(true);
+        loadSchedules();
     }
 
-    private void loadTasks() {
+    private void loadSchedules() {
         tableModel.setRowCount(0);
-        List<Schedule> tasks = scheduleManager.getSchedules();
+        displayedSchedules.clear();
         
-        for (Schedule task : tasks) {
-            // 진행률 계산
-            double progress = calculateProgress(task);
-            String progressText = String.format("%.1f%%", progress);
-            
-            // 체크리스트 정보
-            String checklistInfo = getChecklistInfo(task);
-            
-            Object[] row = {
-                task.getTitle(),
-                task.getStartTime() != null ? task.getStartTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "없음",
-                getStatusText(task),
-                getPriorityText(task),
-                progressText,
-                checklistInfo
+        List<Schedule> allSchedules = scheduleManager.getUserSchedules();
+        displayedSchedules.addAll(allSchedules);
+
+        for (Schedule schedule : displayedSchedules) {
+            Object[] rowData = {
+                schedule.getTitle(),
+                schedule.getEndTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
+                getStatusText(schedule),
+                getPriorityText(schedule),
+                String.format("%.1f%%", schedule.getProgress()),
+                getChecklistInfo(schedule)
             };
-            tableModel.addRow(row);
+            tableModel.addRow(rowData);
         }
         
         updateTagFilter();
@@ -349,104 +291,91 @@ public class TaskListPanel extends JPanel {
         boolean importantOnly = importantFilterCheckBox.isSelected();
 
         tableModel.setRowCount(0);
-        List<Schedule> tasks = scheduleManager.getSchedulesByCategory("할 일");
+        displayedSchedules.clear();
         
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        
-        for (Schedule task : tasks) {
-            // 검색어 필터링
-            if (!searchText.isEmpty() &&
-                !task.getTitle().toLowerCase().contains(searchText) &&
-                !task.getDescription().toLowerCase().contains(searchText)) {
-                continue;
+        List<Schedule> allSchedules = scheduleManager.getUserSchedules();
+
+        for (Schedule schedule : allSchedules) {
+            boolean matches = true;
+
+            // 검색어 필터
+            if (!searchText.isEmpty() && !schedule.getTitle().toLowerCase().contains(searchText)) {
+                matches = false;
             }
 
-            // 상태 필터링
-            if (!selectedFilter.equals("전체")) {
+            // 상태 필터
+            if (matches && !"전체".equals(selectedFilter)) {
                 switch (selectedFilter) {
                     case "대기중":
-                        if (!"TODO".equals(task.getStatus())) continue;
+                        if (!"대기중".equals(getStatusText(schedule))) matches = false;
                         break;
                     case "진행중":
-                        if (!"IN_PROGRESS".equals(task.getStatus())) continue;
+                        if (!"진행중".equals(getStatusText(schedule))) matches = false;
                         break;
                     case "완료":
-                        if (!"COMPLETED".equals(task.getStatus())) continue;
+                        if (!"완료".equals(getStatusText(schedule))) matches = false;
                         break;
                     case "중요":
-                        if (!task.isImportant()) continue;
+                        if (!schedule.isImportant()) matches = false;
                         break;
                     case "지연":
-                        if (task.getEndTime() == null || 
-                            !task.getEndTime().isBefore(LocalDateTime.now()) ||
-                            "COMPLETED".equals(task.getStatus())) {
-                            continue;
-                        }
+                        if (!isOverdue(schedule)) matches = false;
                         break;
                 }
             }
-
-            // 태그 필터링
-            if (!selectedTag.equals("전체") && !task.getTags().contains(selectedTag)) {
-                continue;
+            
+            // 태그 필터
+            if (matches && selectedTag != null && !"전체".equals(selectedTag)) {
+                if (!schedule.getTags().contains(selectedTag)) {
+                    matches = false;
+                }
             }
 
-            // 중요 태스크 필터링
-            if (importantOnly && !task.isImportant()) {
-                continue;
+            // 중요 필터
+            if (matches && importantOnly && !schedule.isImportant()) {
+                matches = false;
             }
 
-            // 진행률 계산
-            double progress = calculateProgress(task);
-            String progressText = String.format("%.1f%%", progress);
-            
-            // 체크리스트 정보
-            String checklistInfo = getChecklistInfo(task);
-            
-            Object[] row = {
-                task.getTitle(),
-                task.getEndTime() != null ? task.getEndTime().format(formatter) : "없음",
-                task.getStatus(),
-                task.isImportant() ? "높음" : "보통",
-                progressText,
-                checklistInfo
-            };
-            tableModel.addRow(row);
+            if (matches) {
+                displayedSchedules.add(schedule);
+                Object[] rowData = {
+                    schedule.getTitle(),
+                    schedule.getEndTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
+                    getStatusText(schedule),
+                    getPriorityText(schedule),
+                    String.format("%.1f%%", schedule.getProgress()),
+                    getChecklistInfo(schedule)
+                };
+                tableModel.addRow(rowData);
+            }
         }
     }
 
-    // 진행률 계산
-    private double calculateProgress(Schedule task) {
-        // 간단한 진행률 계산 (실제로는 Task 객체의 체크리스트를 사용해야 함)
-        if (task.getTitle().contains("완료")) {
-            return 100.0;
-        } else if (task.getTitle().contains("진행")) {
-            return 50.0;
-        } else {
-            return 0.0;
+    private boolean isOverdue(Schedule schedule) {
+        return !schedule.isCompleted() && java.time.LocalDateTime.now().isAfter(schedule.getEndTime());
+    }
+    
+    private String getChecklistInfo(Schedule schedule) {
+        List<Schedule.SubTask> subTasks = schedule.getSubTasks();
+        if (subTasks.isEmpty()) {
+            return "0/0";
         }
+        long completedCount = subTasks.stream().filter(Schedule.SubTask::isCompleted).count();
+        return completedCount + "/" + subTasks.size();
     }
     
-    // 체크리스트 정보 가져오기
-    private String getChecklistInfo(Schedule task) {
-        // 실제로는 Task 객체의 체크리스트 정보를 사용해야 함
-        return "0/0"; // 임시 값
-    }
-    
-    // 상태 텍스트 변환
-    private String getStatusText(Schedule task) {
-        if (task.getTitle().contains("완료")) {
+    private String getStatusText(Schedule schedule) {
+        if (schedule.isCompleted()) {
             return "완료";
-        } else if (task.getTitle().contains("진행")) {
+        } else if ("IN_PROGRESS".equals(schedule.getStatus())) {
             return "진행중";
         } else {
             return "대기중";
         }
     }
     
-    // 우선순위 텍스트 변환
-    private String getPriorityText(Schedule task) {
-        if (task.isImportant()) {
+    private String getPriorityText(Schedule schedule) {
+        if (schedule.isImportant()) {
             return "높음";
         } else {
             return "보통";

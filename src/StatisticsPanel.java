@@ -115,7 +115,17 @@ public class StatisticsPanel extends JPanel {
     }
 
     private void updateStatistics() {
-        String userId = userManager.getCurrentUser().getUserId();
+        User currentUser = userManager.getCurrentUser();
+        if (currentUser == null) {
+            // 로그인하지 않은 경우 모든 패널을 비우고 메시지 표시
+            clearAllPanels();
+            overviewPanel.add(new JLabel("통계를 보려면 로그인이 필요합니다.", SwingConstants.CENTER));
+            overviewPanel.revalidate();
+            overviewPanel.repaint();
+            return;
+        }
+        
+        String userId = currentUser.getUserId();
         String period = (String) periodComboBox.getSelectedItem();
         String viewType = (String) viewTypeComboBox.getSelectedItem();
         
@@ -123,32 +133,50 @@ public class StatisticsPanel extends JPanel {
         LocalDateTime start = getStartDate(period);
         LocalDateTime end = LocalDateTime.now();
         
+        // 해당 기간의 현재 사용자 일정만 가져오기
+        List<Schedule> userSchedules = scheduleManager.getSchedulesByUserId(userId)
+            .stream()
+            .filter(s -> !s.getStartTime().isAfter(end) && !s.getEndTime().isBefore(start))
+            .collect(Collectors.toList());
+        
         // 개요 업데이트
-        updateOverview(userId, start, end, viewType);
+        updateOverview(userSchedules, viewType);
         
         // 일일 요약 업데이트
-        updateDailySummary(userId, viewType);
+        updateDailySummary(userSchedules, viewType);
         
         // 주간 리뷰 업데이트
-        updateWeeklyReview(userId, viewType);
+        updateWeeklyReview(userSchedules, viewType);
         
         // 월간 리포트 업데이트
-        updateMonthlyReport(userId, viewType);
+        updateMonthlyReport(userSchedules, viewType);
         
         // 카테고리 통계 업데이트
-        updateCategoryStatistics(userId, start, end, viewType);
+        updateCategoryStatistics(userSchedules, viewType);
         
         // 우선순위 통계 업데이트
-        updatePriorityStatistics(userId, start, end, viewType);
+        updatePriorityStatistics(userSchedules, viewType);
         
         // 완료율 통계 업데이트
-        updateCompletionStatistics(userId, start, end, viewType);
+        updateCompletionStatistics(userSchedules, viewType);
         
         // 타임라인 통계 업데이트
-        updateTimelineStatistics(userId, start, end, viewType);
+        updateTimelineStatistics(userSchedules, viewType);
         
         // 생산성 분석 업데이트
-        updateProductivityAnalysis(userId);
+        updateProductivityAnalysis(userSchedules);
+    }
+
+    private void clearAllPanels() {
+        overviewPanel.removeAll();
+        dailySummaryPanel.removeAll();
+        weeklyReviewPanel.removeAll();
+        monthlyReportPanel.removeAll();
+        categoryPanel.removeAll();
+        priorityPanel.removeAll();
+        completionPanel.removeAll();
+        timelinePanel.removeAll();
+        productivityPanel.removeAll();
     }
 
     private LocalDateTime getStartDate(String period) {
@@ -167,11 +195,10 @@ public class StatisticsPanel extends JPanel {
         }
     }
 
-    private void updateOverview(String userId, LocalDateTime start, LocalDateTime end, String viewType) {
+    private void updateOverview(List<Schedule> schedules, String viewType) {
         overviewPanel.removeAll();
         
         // 총 일정 수
-        List<Schedule> schedules = scheduleManager.getSchedulesByDateRange(start, end);
         int totalSchedules = schedules.size();
         
         // 완료된 일정 수
@@ -201,14 +228,14 @@ public class StatisticsPanel extends JPanel {
         overviewPanel.repaint();
     }
     
-    private void updateDailySummary(String userId, String viewType) {
+    private void updateDailySummary(List<Schedule> allSchedules, String viewType) {
         dailySummaryPanel.removeAll();
         
         LocalDate today = LocalDate.now();
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.atTime(23, 59, 59);
         
-        List<Schedule> todaySchedules = scheduleManager.getSchedulesByDateRange(startOfDay, endOfDay);
+        List<Schedule> todaySchedules = allSchedules.stream()
+            .filter(s -> s.getStartTime().toLocalDate().equals(today))
+            .collect(Collectors.toList());
         
         // 일일 요약 정보
         JPanel summaryPanel = new JPanel(new GridLayout(3, 1, 5, 5));
@@ -251,34 +278,38 @@ public class StatisticsPanel extends JPanel {
         dailySummaryPanel.repaint();
     }
     
-    private void updateWeeklyReview(String userId, String viewType) {
+    private void updateWeeklyReview(List<Schedule> allSchedules, String viewType) {
         weeklyReviewPanel.removeAll();
         
         LocalDate today = LocalDate.now();
         LocalDate startOfWeek = today.with(DayOfWeek.MONDAY);
         LocalDate endOfWeek = today.with(DayOfWeek.SUNDAY);
         
-        // 주간 통계
-        JPanel statsPanel = new JPanel(new GridLayout(2, 2, 5, 5));
-        statsPanel.setBorder(BorderFactory.createTitledBorder("이번 주 통계"));
+        // 주간 요약 정보
+        JPanel summaryPanel = new JPanel(new GridLayout(3, 1, 5, 5));
+        summaryPanel.setBorder(BorderFactory.createTitledBorder("이번 주 요약"));
         
+        List<LocalDate> weekDates = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            weekDates.add(startOfWeek.plusDays(i));
+        }
+
         int totalWeekly = 0;
         int completedWeekly = 0;
         
-        for (LocalDate date = startOfWeek; !date.isAfter(endOfWeek); date = date.plusDays(1)) {
-            LocalDateTime startOfDay = date.atStartOfDay();
-            LocalDateTime endOfDay = date.atTime(23, 59, 59);
-            
-            List<Schedule> daySchedules = scheduleManager.getSchedulesByDateRange(startOfDay, endOfDay);
+        for (LocalDate date : weekDates) {
+            List<Schedule> daySchedules = allSchedules.stream()
+                .filter(s -> s.getStartTime().toLocalDate().isEqual(date) || s.getEndTime().toLocalDate().isEqual(date))
+                .collect(Collectors.toList());
             totalWeekly += daySchedules.size();
             completedWeekly += daySchedules.stream().filter(Schedule::isCompleted).count();
         }
         
-        statsPanel.add(createInfoPanel("총 일정", String.valueOf(totalWeekly)));
-        statsPanel.add(createInfoPanel("완료된 일정", String.valueOf(completedWeekly)));
-        statsPanel.add(createInfoPanel("완료율", String.format("%.1f%%", 
+        summaryPanel.add(createInfoPanel("총 일정", String.valueOf(totalWeekly)));
+        summaryPanel.add(createInfoPanel("완료된 일정", String.valueOf(completedWeekly)));
+        summaryPanel.add(createInfoPanel("완료율", String.format("%.1f%%", 
             totalWeekly > 0 ? (double) completedWeekly / totalWeekly * 100 : 0)));
-        statsPanel.add(createInfoPanel("평균 일일 일정", String.format("%.1f", 
+        summaryPanel.add(createInfoPanel("평균 일일 일정", String.format("%.1f", 
             (double) totalWeekly / 7)));
         
         // 요일별 일정
@@ -290,17 +321,15 @@ public class StatisticsPanel extends JPanel {
         
         String[] dayNames = {"월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"};
         
-        for (int i = 0; i < 7; i++) {
-            LocalDate date = startOfWeek.plusDays(i);
-            LocalDateTime startOfDay = date.atStartOfDay();
-            LocalDateTime endOfDay = date.atTime(23, 59, 59);
-            
-            List<Schedule> daySchedules = scheduleManager.getSchedulesByDateRange(startOfDay, endOfDay);
+        for (LocalDate date : weekDates) {
+            List<Schedule> daySchedules = allSchedules.stream()
+                .filter(s -> s.getStartTime().toLocalDate().isEqual(date) || s.getEndTime().toLocalDate().isEqual(date))
+                .collect(Collectors.toList());
             int dayTotal = daySchedules.size();
             int dayCompleted = (int) daySchedules.stream().filter(Schedule::isCompleted).count();
             double dayCompletionRate = dayTotal > 0 ? (double) dayCompleted / dayTotal * 100 : 0;
             
-            model.addRow(new Object[]{dayNames[i], dayTotal, dayCompleted, 
+            model.addRow(new Object[]{dayNames[weekDates.indexOf(date)], dayTotal, dayCompleted, 
                 String.format("%.1f%%", dayCompletionRate)});
         }
         
@@ -309,7 +338,7 @@ public class StatisticsPanel extends JPanel {
         
         // 레이아웃 구성
         JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.add(statsPanel, BorderLayout.NORTH);
+        mainPanel.add(summaryPanel, BorderLayout.NORTH);
         mainPanel.add(dailyPanel, BorderLayout.CENTER);
         
         weeklyReviewPanel.add(mainPanel, BorderLayout.CENTER);
@@ -317,7 +346,7 @@ public class StatisticsPanel extends JPanel {
         weeklyReviewPanel.repaint();
     }
     
-    private void updateMonthlyReport(String userId, String viewType) {
+    private void updateMonthlyReport(List<Schedule> allSchedules, String viewType) {
         monthlyReportPanel.removeAll();
         
         LocalDate today = LocalDate.now();
@@ -332,11 +361,16 @@ public class StatisticsPanel extends JPanel {
         int completedMonthly = 0;
         Map<String, Integer> categoryCount = new HashMap<>();
         
-        for (LocalDate date = startOfMonth; !date.isAfter(endOfMonth); date = date.plusDays(1)) {
-            LocalDateTime startOfDay = date.atStartOfDay();
-            LocalDateTime endOfDay = date.atTime(23, 59, 59);
-            
-            List<Schedule> daySchedules = scheduleManager.getSchedulesByDateRange(startOfDay, endOfDay);
+        List<LocalDate> monthDates = new ArrayList<>();
+        long totalDaysInMonth = startOfMonth.lengthOfMonth();
+        for (long i = 0; i < totalDaysInMonth; i++) {
+            monthDates.add(startOfMonth.plusDays(i));
+        }
+
+        for (LocalDate date : monthDates) {
+            List<Schedule> daySchedules = allSchedules.stream()
+                .filter(s -> s.getStartTime().toLocalDate().isEqual(date) || s.getEndTime().toLocalDate().isEqual(date))
+                .collect(Collectors.toList());
             totalMonthly += daySchedules.size();
             completedMonthly += daySchedules.stream().filter(Schedule::isCompleted).count();
             
@@ -382,10 +416,10 @@ public class StatisticsPanel extends JPanel {
         monthlyReportPanel.repaint();
     }
 
-    private void updateCategoryStatistics(String userId, LocalDateTime start, LocalDateTime end, String viewType) {
+    private void updateCategoryStatistics(List<Schedule> allSchedules, String viewType) {
         categoryPanel.removeAll();
         
-        Map<String, Integer> categoryStats = scheduleManager.getCategoryStatistics(userId);
+        Map<String, Integer> categoryStats = scheduleManager.getCategoryStatistics(allSchedules);
         
         // 테이블 생성
         String[] columnNames = {"카테고리", "일정 수"};
@@ -402,10 +436,10 @@ public class StatisticsPanel extends JPanel {
         categoryPanel.repaint();
     }
 
-    private void updatePriorityStatistics(String userId, LocalDateTime start, LocalDateTime end, String viewType) {
+    private void updatePriorityStatistics(List<Schedule> allSchedules, String viewType) {
         priorityPanel.removeAll();
         
-        Map<Integer, Integer> priorityStats = scheduleManager.getPriorityStatistics(userId);
+        Map<Integer, Integer> priorityStats = scheduleManager.getPriorityStatistics(allSchedules);
         
         // 테이블 생성
         String[] columnNames = {"우선순위", "일정 수"};
@@ -422,10 +456,10 @@ public class StatisticsPanel extends JPanel {
         priorityPanel.repaint();
     }
 
-    private void updateCompletionStatistics(String userId, LocalDateTime start, LocalDateTime end, String viewType) {
+    private void updateCompletionStatistics(List<Schedule> allSchedules, String viewType) {
         completionPanel.removeAll();
         
-        double completionRate = scheduleManager.getCompletionRate(userId);
+        double completionRate = scheduleManager.getCompletionRate(allSchedules);
         
         // 테이블 생성
         String[] columnNames = {"완료율"};
@@ -439,16 +473,14 @@ public class StatisticsPanel extends JPanel {
         completionPanel.repaint();
     }
 
-    private void updateTimelineStatistics(String userId, LocalDateTime start, LocalDateTime end, String viewType) {
+    private void updateTimelineStatistics(List<Schedule> allSchedules, String viewType) {
         timelinePanel.removeAll();
-        
-        List<Schedule> schedules = scheduleManager.getSchedulesByDateRange(start, end);
         
         // 테이블 생성
         String[] columnNames = {"날짜", "일정 수"};
         DefaultTableModel model = new DefaultTableModel(columnNames, 0);
         
-        Map<LocalDateTime, Long> dailyCounts = schedules.stream()
+        Map<LocalDateTime, Long> dailyCounts = allSchedules.stream()
             .collect(Collectors.groupingBy(
                 schedule -> schedule.getStartTime().withHour(0).withMinute(0).withSecond(0),
                 Collectors.counting()
@@ -468,7 +500,7 @@ public class StatisticsPanel extends JPanel {
         timelinePanel.repaint();
     }
 
-    private void updateProductivityAnalysis(String userId) {
+    private void updateProductivityAnalysis(List<Schedule> allSchedules) {
         productivityPanel.removeAll();
         // 시간대별/요일별/카테고리별 완료율 분석
         JPanel mainPanel = new JPanel(new GridLayout(1, 3, 10, 10));
@@ -479,8 +511,7 @@ public class StatisticsPanel extends JPanel {
         int[] hourTotal = new int[24];
         int[] hourCompleted = new int[24];
         for (int i = 0; i < 24; i++) hourLabels[i] = i + "시";
-        List<Schedule> all = scheduleManager.getSchedules();
-        for (Schedule s : all) {
+        for (Schedule s : allSchedules) {
             if (s.getStartTime() != null) {
                 int hour = s.getStartTime().getHour();
                 hourTotal[hour]++;
@@ -502,7 +533,7 @@ public class StatisticsPanel extends JPanel {
         String[] dayLabels = {"월", "화", "수", "목", "금", "토", "일"};
         int[] dayTotal = new int[7];
         int[] dayCompleted = new int[7];
-        for (Schedule s : all) {
+        for (Schedule s : allSchedules) {
             if (s.getStartTime() != null) {
                 int day = s.getStartTime().getDayOfWeek().getValue() - 1;
                 dayTotal[day]++;
@@ -522,7 +553,7 @@ public class StatisticsPanel extends JPanel {
         
         // 카테고리별 완료율
         Map<String, int[]> catMap = new HashMap<>();
-        for (Schedule s : all) {
+        for (Schedule s : allSchedules) {
             String cat = s.getCategory();
             if (!catMap.containsKey(cat)) catMap.put(cat, new int[2]);
             catMap.get(cat)[0]++;

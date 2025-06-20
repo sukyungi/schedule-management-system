@@ -354,46 +354,30 @@ public class ScheduleManager {
     }
 
     public List<Schedule> getSchedulesByUserId(String userId) {
+        if (userId == null) return new ArrayList<>();
         return schedules.values().stream()
-            .filter(schedule -> schedule.getUserId().equals(userId))
+            .filter(schedule -> userId.equals(schedule.getUserId()))
             .collect(Collectors.toList());
     }
 
-    public Map<String, Integer> getCategoryStatistics(String userId) {
-        Map<String, Integer> categoryStats = new HashMap<>();
-        List<Schedule> userSchedules = getSchedulesByUserId(userId);
-        
-        for (Schedule schedule : userSchedules) {
-            String category = schedule.getCategory();
-            categoryStats.put(category, categoryStats.getOrDefault(category, 0) + 1);
-        }
-        
-        return categoryStats;
+    public Map<String, Integer> getCategoryStatistics(List<Schedule> schedules) {
+        if (schedules == null) return new HashMap<>();
+        return schedules.stream()
+            .collect(Collectors.groupingBy(Schedule::getCategory, Collectors.summingInt(_ -> 1)));
     }
 
-    public Map<Integer, Integer> getPriorityStatistics(String userId) {
-        Map<Integer, Integer> priorityStats = new HashMap<>();
-        List<Schedule> userSchedules = getSchedulesByUserId(userId);
-        
-        for (Schedule schedule : userSchedules) {
-            int priority = schedule.getPriority();
-            priorityStats.put(priority, priorityStats.getOrDefault(priority, 0) + 1);
-        }
-        
-        return priorityStats;
+    public Map<Integer, Integer> getPriorityStatistics(List<Schedule> schedules) {
+        if (schedules == null) return new HashMap<>();
+        return schedules.stream()
+            .collect(Collectors.groupingBy(Schedule::getPriority, Collectors.summingInt(_ -> 1)));
     }
 
-    public double getCompletionRate(String userId) {
-        List<Schedule> userSchedules = getSchedulesByUserId(userId);
-        if (userSchedules.isEmpty()) {
+    public double getCompletionRate(List<Schedule> schedules) {
+        if (schedules == null || schedules.isEmpty()) {
             return 0.0;
         }
-        
-        long completedCount = userSchedules.stream()
-            .filter(Schedule::isCompleted)
-            .count();
-            
-        return (double) completedCount / userSchedules.size() * 100;
+        long completedCount = schedules.stream().filter(Schedule::isCompleted).count();
+        return (double) completedCount / schedules.size() * 100.0;
     }
 
     public void shareSchedule(String scheduleId, String targetUserId) {
@@ -434,22 +418,6 @@ public class ScheduleManager {
         LocalDate today = LocalDate.now();
         return getUserSchedules().stream()
                 .filter(schedule -> schedule.getStartTime().toLocalDate().equals(today))
-                .collect(Collectors.toList());
-    }
-
-    public List<Task> getAllTasks() {
-        if (currentUserId == null) {
-            return Collections.emptyList();
-        }
-        // This is a placeholder. A proper implementation would load tasks 
-        // associated with the current user.
-        // For now, let's assume DataStorage can handle this.
-        Map<String, Task> allTasks = DataStorage.loadTasks();
-        if (allTasks == null) {
-            return Collections.emptyList();
-        }
-        return allTasks.values().stream()
-                .filter(task -> task.getUserId().equals(currentUserId))
                 .collect(Collectors.toList());
     }
 } 
