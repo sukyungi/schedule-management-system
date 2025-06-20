@@ -418,6 +418,6 @@ public class ScheduleManager {
         LocalDate today = LocalDate.now();
         return getUserSchedules().stream()
                 .filter(schedule -> schedule.getStartTime().toLocalDate().equals(today))
-                .collect(Collectors.toList());
+            .collect(Collectors.toList());
     }
 } 

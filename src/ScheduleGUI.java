@@ -324,21 +324,6 @@ public class ScheduleGUI extends JFrame {
                     }
                 }
             }
-
-            // TaskManager가 구현되지 않았으므로 주석 처리
-            /*
-            List<Task> tasks = taskManager.getUserTasks();
-            for (Task task : tasks) {
-                if (task.getDueDate() != null && 
-                    task.getStatus() != Task.Status.COMPLETED &&
-                    task.getDueDate().isBefore(LocalDateTime.now().plusHours(1))) {
-                    NotificationManager.getInstance().showNotificationPopup(
-                        "태스크 마감 알림",
-                        task.getTitle() + " 태스크의 마감이 1시간 이내입니다."
-                    );
-                }
-            }
-            */
         }
     }
 

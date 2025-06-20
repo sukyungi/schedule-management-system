@@ -59,22 +59,6 @@ public class NotificationManager {
     }
 
     private NotificationManager() {
-        notificationFrame = new JFrame();
-        notificationFrame.setUndecorated(true);
-        notificationFrame.setAlwaysOnTop(true);
-        notificationFrame.setType(Window.Type.UTILITY);
-        
-        notificationPanel = new JPanel();
-        notificationPanel.setLayout(new BoxLayout(notificationPanel, BoxLayout.Y_AXIS));
-        notificationPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        
-        JScrollPane scrollPane = new JScrollPane(notificationPanel);
-        notificationFrame.add(scrollPane);
-        
-        // 알림 창 위치 설정 (화면 우측 상단)
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        notificationFrame.setLocation(screenSize.width - 350, 50);
-
         scheduler = Executors.newScheduledThreadPool(1);
         notificationTasks = new ConcurrentHashMap<>();
         listeners = new ArrayList<>();
